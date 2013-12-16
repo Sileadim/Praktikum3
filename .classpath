@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path=""/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/JGBParser.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/biojava.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/bytecode.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/jahmm-0.6.1.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/biojava3-aa-prop-3.0.5.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/biojava3-alignment-3.0.5.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/biojava3-core-3.0.5.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/biojava3-genome-3.0.5.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/biojava3-modfinder-3.0.5.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/biojava3-phylo-3.0.5.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/biojava3-protein-disorder-3.0.5.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/biojava3-structure-3.0.5.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/biojava3-structure-gui-3.0.5.jar"/>
+	<classpathentry kind="lib" path="/home/sileadim/workspace/Lib/biojava3-ws-3.0.5.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
