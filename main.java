@@ -1,25 +1,26 @@
-import be.ac.ulg.montefiore.run.jahmm.*;
-import br.ufpr.bioinfo.genbank.parser.*;
-import org.biojava.*;
-import java.*;
+import br.ufpr.bioinfo.genbank.Entry;
+import br.ufpr.bioinfo.genbank.io.GenBankReader;
+import br.ufpr.bioinfo.genbank.parser.GenBankParser;
+
+import java.lang.String;
 
 
-public void readGenes ()  
-{
+
+public class main {
+
+		
+	public static void main(String[] args) {
+		readGene();
+
+	}
 	
-	String buffer = GenBankReader.readFile("/Data/coli.gb");
-	GenBankParser gp = new GenBankParser();
-	Entry entry = gp.process(buffer);
-	System.out.println("File read")
+	public static void readGene()  
+	{
+		
+		String buffer = GenBankReader.readFile("/Data/coli.gb");
+		GenBankParser gp = new GenBankParser();
+		Entry entry = gp.process(buffer);
+		System.out.println("File read");
+	}
+
 }
-
-
-public static void main()
-{
-	readGenes();
-}
-
-
-
-
-
