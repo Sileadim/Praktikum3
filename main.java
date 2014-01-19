@@ -54,17 +54,18 @@ public class main {
 		}
 		//success
 		System.out.println("Gene positions extracted");
-		System.out.println(baumWelch(buildHmm(seq, genePositions),100).toString());
+//		System.out.println(baumWelch(buildHmm(seq, genePositions),100).toString());
 		
-//		List<int[]>test = new ArrayList<int[]>();
-//		int[]test1 = {3,8};
-//		int[]test2 = {12,19};
-//		test.add(test1);
-//		test.add(test2);		
-//		System.out.println(liststring(threeStates(test, 22)));
+/*		List<int[]>test = new ArrayList<int[]>(); // testing for stateMaker
+		int[]test1 = {3,8};
+		int[]test2 = {12,19};
+		test.add(test1);
+		test.add(test2);		
+		System.out.println(liststring(fiveStates(test, 22)));
+*/
 
 	}
-	public static String liststring(List<List<int[]>> list)
+	public static String liststring(List<List<int[]>> list) // toString function for List<List<int[]>>
 	{
 		String bla = "[";
 		for(int i = 0; i < (list.size()); i++ )
@@ -134,27 +135,28 @@ public class main {
 		twostates.add(thirdState);
 		return(twostates);
 	}
-	/*
-	public static List<List<int[]>> fiveStates(List<int[]> genelist, int l) // l: length of seq
+
+/*	public static List<List<int[]>> fiveStates(List<int[]> genelist, int l) // l: length of seq
 	{
 		List<List<int[]>> threestates = threeStates(genelist,l);
-		List<int[]> thirdState = threestates.get(2);
+		List<List<int[]>> newstates = new ArrayList<List<int[]>>(3);
 		for(int i = 0; i < (genelist.size()); i++ )
 		{
-			int[] codonpair = {twostates.get(0).get(i) [0], twostates.get(0).get(i) [0] + 2};
-			List<int[]> clonepairs = twostates.get(0);
-			int[] pair = clonepairs.get(i);
-			pair[0] = pair[0] + 3;
-			clonepairs.set(i, pair);
-			twostates.set(0, clonepairs);
-			
-
-			thirdState.add(codonpair);
+			int[] codonpair1 = {threestates.get(2).get(i) [0], threestates.get(2).get(i) [0]};
+			int[] codonpair2 = {threestates.get(2).get(i) [0]+1, threestates.get(2).get(i) [0]+1};
+			int[] codonpair3 = {threestates.get(2).get(i) [0]+2, threestates.get(2).get(i) [0]+2};
+						
+			List<int[]> newpairs = new ArrayList<int[]>(); // fail, falsch rum
+			newpairs.add(codonpair1); // [[[6 8 ][15 19 ]][[0 2 ][9 11 ][19 21 ]][[3 3 ][4 4 ][5 5 ]][[12 12 ][13 13 ][14 14 ]]]
+			newpairs.add(codonpair2);
+			newpairs.add(codonpair3);			
+			newstates.add(newpairs);
 		}
-		twostates.add(thirdState);
-		return(twostates);
+		threestates.remove(2);
+		threestates.addAll(newstates);
+		return(threestates);
 	}
-	*/
+*/
 	public static Hmm<ObservationInteger> buildHmm(Sequence seq, List<int[]> genePositions) throws IOException  
 	{
 		//Probability of starting in Non-Gene vs Gene. The assumptions is we always start in Non-Gene

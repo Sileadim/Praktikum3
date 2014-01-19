@@ -1,0 +1,20 @@
+//execute the Baum-Welch-algorithm for a given hmm
+	public static <O extends Observation>  Hmm<O> baumWelch(Hmm<O> hmm, int nbOfIteration)
+	{
+		//create a MarkovGenerator object 
+		MarkovGenerator<O> mg = new MarkovGenerator<O>(hmm);
+		//List<List<O>> object for the sequences
+		List<List<O>> sequences = new ArrayList<List<O>>();
+		
+		//build 200 sequences of length 500 based on the given hmm
+		for (int i = 0; i < 200; i++)
+			sequences.add(mg.observationSequence(500));
+		
+		//initialize a Baum-Welch-object
+		BaumWelchLearner bwl = new BaumWelchLearner();
+		//set numbers of iterations
+		bwl.setNbIterations(nbOfIteration);
+		//learn new hmm from old hmm and builded sequences
+		Hmm<O> learntHmm = bwl.learn(hmm, sequences);
+		return learntHmm;
+	}
