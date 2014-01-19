@@ -3,6 +3,10 @@ import be.ac.ulg.montefiore.run.jahmm.Observation;
 import be.ac.ulg.montefiore.run.jahmm.ObservationInteger;
 import be.ac.ulg.montefiore.run.jahmm.Opdf;
 import be.ac.ulg.montefiore.run.jahmm.OpdfInteger;
+import be.ac.ulg.montefiore.run.jahmm.OpdfIntegerFactory;
+import be.ac.ulg.montefiore.run.jahmm.io.FileFormatException;
+import be.ac.ulg.montefiore.run.jahmm.io.ObservationIntegerReader;
+import be.ac.ulg.montefiore.run.jahmm.io.ObservationSequencesReader;
 import be.ac.ulg.montefiore.run.jahmm.learn.BaumWelchLearner;
 import be.ac.ulg.montefiore.run.jahmm.toolbox.MarkovGenerator;
 import br.ufpr.bioinfo.genbank.Entry;
@@ -11,7 +15,11 @@ import br.ufpr.bioinfo.genbank.Sequence;
 import br.ufpr.bioinfo.genbank.io.GenBankReader;
 import br.ufpr.bioinfo.genbank.parser.GenBankParser;
 
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.Reader;
+import java.io.StringReader;
 import java.lang.String;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +29,7 @@ import java.util.List;
 public class main {
 
 		
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, FileFormatException {
 		
 		//buffering *.gb file
 		String buffer = GenBankReader.readFile("Data/coli.gb");
@@ -34,38 +42,68 @@ public class main {
 		List<Feature>features = entry.getFeatures();
 		//extract Sequence
 		Sequence seq = entry.getSequence();
+
 		
-		//initialize List for all Gene positions
-		List<int[]> genePositions = new ArrayList<int[]>();
 		
-		//for all features
-		for(int i = 1; i < features.size(); i++){
-			
-		Feature f = features.get(i);
+		
+		List<List<ObservationInteger>> genes = new ArrayList<List<ObservationInteger>>();
+		List<List<ObservationInteger>> nongenes = new ArrayList<List<ObservationInteger>>();
+		
+		List<ObservationInteger> seqObs = getSeqObs(seq);
+		
+		System.out.println("start gene search");
+		genes = getGeneSubSequences(seq, features, seqObs);
+		System.out.println("start non-gene search");
+		nongenes = getNonGeneSubSequences(seq, features, seqObs);
+		System.out.println("done");
+		
+		
+		
 		//if feature is not on the complementary strand and is a gene add its position
-		if(!f.getLocation().isComplement()){ 
-			if(f.getKey().equals("gene")){
-					//getting positions
-					int[] positions = {f.getLocation().getMinor(),f.getLocation().getMajor()};
-					genePositions.add(positions);
 		
-			}
-			}
-		}
+		
 		//success
 		System.out.println("Gene positions extracted");
-//		System.out.println(baumWelch(buildHmm(seq, genePositions),100).toString());
+		Hmm<ObservationInteger> hmm = buildHmm(seq, features);
 		
-/*		List<int[]>test = new ArrayList<int[]>(); // testing for stateMaker
-		int[]test1 = {3,8};
-		int[]test2 = {12,19};
-		test.add(test1);
-		test.add(test2);		
-		System.out.println(liststring(fiveStates(test, 22)));
-*/
+		Hmm < ObservationInteger > dummyHmm =
+				new Hmm < ObservationInteger >(2 , new OpdfIntegerFactory(4) );
+		System.out.println(hmm.toString());
+		System.out.println(dummyHmm.toString());
+		//System.out.println(baumWelch(dummyHmm ,100, seqObs).toString());
+
+
 
 	}
-	public static String liststring(List<List<int[]>> list) // toString function for List<List<int[]>>
+	
+	//return seqObs list from  given Sequence
+	public static  ArrayList<ObservationInteger> getSeqObs(Sequence seq){
+
+		ArrayList<ObservationInteger> seqObs = new ArrayList<ObservationInteger>();
+		String seqString = seq.getSequence();
+	
+	for (int i=0; i<seq.length();i++){
+		if(seqString.charAt(i) == 'a'){
+			ObservationInteger help = new ObservationInteger(0);
+			seqObs.add(help);
+		}
+		else if(seqString.charAt(i) == 'c'){
+			ObservationInteger help = new ObservationInteger(1);
+			seqObs.add(help);
+		}
+		else if(seqString.charAt(i) == 'g'){
+			ObservationInteger help = new ObservationInteger(2);
+			seqObs.add(help);
+		}
+		else {
+			ObservationInteger help = new ObservationInteger(3);
+			seqObs.add(help);
+		}
+	}
+	return seqObs;	
+	}
+	
+	public static String liststring(List<List<int[]>> list)
 	{
 		String bla = "[";
 		for(int i = 0; i < (list.size()); i++ )
@@ -135,39 +173,54 @@ public class main {
 		twostates.add(thirdState);
 		return(twostates);
 	}
-
-/*	public static List<List<int[]>> fiveStates(List<int[]> genelist, int l) // l: length of seq
+	/*
+	public static List<List<int[]>> fiveStates(List<int[]> genelist, int l) // l: length of seq
 	{
 		List<List<int[]>> threestates = threeStates(genelist,l);
-		List<List<int[]>> newstates = new ArrayList<List<int[]>>(3);
+		List<int[]> thirdState = threestates.get(2);
 		for(int i = 0; i < (genelist.size()); i++ )
 		{
-			int[] codonpair1 = {threestates.get(2).get(i) [0], threestates.get(2).get(i) [0]};
-			int[] codonpair2 = {threestates.get(2).get(i) [0]+1, threestates.get(2).get(i) [0]+1};
-			int[] codonpair3 = {threestates.get(2).get(i) [0]+2, threestates.get(2).get(i) [0]+2};
-						
-			List<int[]> newpairs = new ArrayList<int[]>(); // fail, falsch rum
-			newpairs.add(codonpair1); // [[[6 8 ][15 19 ]][[0 2 ][9 11 ][19 21 ]][[3 3 ][4 4 ][5 5 ]][[12 12 ][13 13 ][14 14 ]]]
-			newpairs.add(codonpair2);
-			newpairs.add(codonpair3);			
-			newstates.add(newpairs);
+			int[] codonpair = {twostates.get(0).get(i) [0], twostates.get(0).get(i) [0] + 2};
+			List<int[]> clonepairs = twostates.get(0);
+			int[] pair = clonepairs.get(i);
+			pair[0] = pair[0] + 3;
+			clonepairs.set(i, pair);
+			twostates.set(0, clonepairs);
+			
+
+			thirdState.add(codonpair);
 		}
-		threestates.remove(2);
-		threestates.addAll(newstates);
-		return(threestates);
+		twostates.add(thirdState);
+		return(twostates);
 	}
-*/
-	public static Hmm<ObservationInteger> buildHmm(Sequence seq, List<int[]> genePositions) throws IOException  
-	{
-		//Probability of starting in Non-Gene vs Gene. The assumptions is we always start in Non-Gene
-		double[] pi = {0.33,0.34,0.33};
+	*/
+	public static Hmm<ObservationInteger> buildHmm(Sequence seq, List<Feature> features) throws IOException  
+	{	
+		
+		List<int[]> genePositions = new ArrayList<int[]>();
+		//for all features
+		for(int i = 1; i < features.size(); i++){
+					
+			Feature f = features.get(i);
+		//initialize List for all Gene positions
+		
+		if(!f.getLocation().isComplement()){ 
+			if(f.getKey().equals("gene")){
+					//getting positions
+					int[] positions = {f.getLocation().getMinor(),f.getLocation().getMajor()};
+					genePositions.add(positions);
+		
+			}
+			}
+		}
+		double[] pi = {1 , 0};
 		//transistion probabilitys of going from state i to state j
 		
 		List<List<int[]>> two= twoStates(genePositions, seq.getSequence().length());
-		List<List<int[]>> three = threeStates(genePositions, seq.getSequence().length());
-		double[][] a = calcTransitionProbs(seq, three);
+		//List<List<int[]>> three = threeStates(genePositions, seq.getSequence().length());
+		double[][] a = calcTransitionProbs(seq, two);
 		//List of Observation distributions
-		List<Opdf> opdfs = calcEmissionProbs(seq, three );
+		List<Opdf> opdfs = calcEmissionProbs(seq, two );
 		Hmm<ObservationInteger> hmm = new Hmm(pi,a, opdfs);
 		//System.out.println(hmm.toString());
 		
@@ -176,13 +229,14 @@ public class main {
 		
 		
 	}
-	
-	
 	public static  double[] countEmissionProbs(Sequence seq, List<int[]> stateList )
 	{
 		String seqString = seq.getSequence();
 		double[] emProbs = new double[4];
 		for(int i = 0; i < seqString.length(); i++ )
+		{
+			
+		if(isInAState(i, stateList) )
 		{
 		if(seqString.charAt(i) == 'a')
 		{
@@ -203,6 +257,7 @@ public class main {
 		}
 		}
 		
+		}
 		double sum = emProbs[0] + emProbs[1] + emProbs[2] + emProbs[3];
 		for(int i = 0; i < emProbs.length ; i++)
 		{
@@ -228,10 +283,6 @@ public class main {
 
 				
 	}
-	
-	
-	
-	
 	public static int isInState(int x,  List<List<int[]>> featurePositions)
 	{
 		int ftNum = featurePositions.size();
@@ -308,13 +359,13 @@ public class main {
 	
 	
 	
-	/*checks if a position is the given list of Gene Positions
-	public static boolean isInAGene(int pos, List<int[]> genePositions)
+	//checks if a position is the given list of Gene Positions
+	public static boolean isInAState(int pos, List<int[]> statePositions)
 	{
 		//interates over all positions pairs
-		for(int i = 0; i < genePositions.size(); i++)
+		for(int i = 0; i < statePositions.size(); i++)
 		{
-			int[] checkPos = genePositions.get(i);
+			int[] checkPos = statePositions.get(i);
 			//if position is in range, then true
 			if(pos >= checkPos[0] & pos <= checkPos[1] )
 			{
@@ -323,11 +374,55 @@ public class main {
 		}
 		return false;
 	}
-*/
+	
+	
+	//function return all gene subsequences of a given sequence
+	public static <O extends Observation> List<List<ObservationInteger>> getGeneSubSequences(Sequence seq, List<Feature> features, List<ObservationInteger> seqObs) throws IOException, FileFormatException{
+		
+		List<List<ObservationInteger>> genes = new ArrayList<List<ObservationInteger>>();
+				
+		for(int i = 1; i < features.size(); i++){
+			
+			Feature f = features.get(i);
+			if(!f.getLocation().isComplement()){
+				if(f.getKey().equals("gene")){
+					int geneBegin = f.getLocation().getMinor();
+					int geneEnd = f.getLocation().getMajor();
+					
+					genes.add(seqObs.subList(geneBegin, geneEnd));
+				}							
+			}		
+		}
+		
+		return genes;
+	}
+	
+	
+	//function return all non-gene subsequences of a given sequence
+	public static <O extends Observation> List<List<ObservationInteger>> getNonGeneSubSequences(Sequence seq, List<Feature> features, List<ObservationInteger> seqObs) throws IOException, FileFormatException{
+		
+		List<List<ObservationInteger>> non_genes = new ArrayList<List<ObservationInteger>>();
+				
+		for(int i = 1; i < features.size(); i++){
+			
+			Feature f = features.get(i);
+			if(!f.getLocation().isComplement()){
+				if(!f.getKey().equals("gene")){
+					int nonGeneBegin = f.getLocation().getMinor();
+					int nonGeneEnd = f.getLocation().getMajor();
+					non_genes.add(seqObs.subList(nonGeneBegin, nonGeneEnd));
+				}			
+			}			
+		}
+		
+		return non_genes;
+	}
+	
 	
 	//execute the Baum-Welch-algorithm for a given hmm
-	public static <O extends Observation>  Hmm<O> baumWelch(Hmm<O> hmm, int nbOfIteration)
+	public static <O extends Observation>  Hmm<O> baumWelch(Hmm<O> hmm, int nbOfIteration, List<ObservationInteger> seqObs)
 	{
+		/*
 		//create a MarkovGenerator object 
 		MarkovGenerator<O> mg = new MarkovGenerator<O>(hmm);
 		//List<List<O>> object for the sequences
@@ -337,6 +432,11 @@ public class main {
 		for (int i = 0; i < 200; i++)
 			sequences.add(mg.observationSequence(500));
 			System.out.println(mg.observationSequence(500));;
+		*/
+		List<List<O>> sequences = new ArrayList<List<O>>();
+		
+		sequences.add((List<O>)seqObs);
+			
 		
 		//initialize a Baum-Welch-object
 		BaumWelchLearner bwl = new BaumWelchLearner();
@@ -346,6 +446,11 @@ public class main {
 		System.out.println("execute Baum-Welch algorithm");
 		Hmm<O> learntHmm = bwl.learn(hmm, sequences);
 		return learntHmm;
+	}
+
+	
+	public static <O extends Observation> void sequencePrediction(Sequence seq, List<Feature> features, Hmm<O> hmm){
+		
 	}
 	
 }
