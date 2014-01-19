@@ -3,6 +3,8 @@ import be.ac.ulg.montefiore.run.jahmm.Observation;
 import be.ac.ulg.montefiore.run.jahmm.ObservationInteger;
 import be.ac.ulg.montefiore.run.jahmm.Opdf;
 import be.ac.ulg.montefiore.run.jahmm.OpdfInteger;
+import be.ac.ulg.montefiore.run.jahmm.learn.BaumWelchLearner;
+import be.ac.ulg.montefiore.run.jahmm.toolbox.MarkovGenerator;
 import br.ufpr.bioinfo.genbank.Entry;
 import br.ufpr.bioinfo.genbank.Feature;
 import br.ufpr.bioinfo.genbank.Sequence;
@@ -52,102 +54,120 @@ public class main {
 		}
 		//success
 		System.out.println("Gene positions extracted");
-		buildHmm(seq, genePositions);
+		System.out.println(baumWelch(buildHmm(seq, genePositions),100).toString());
 		
 
 	}
 	
-	public static void buildHmm(Sequence seq, List<int[]> genePositions) throws IOException  
+	
+	public static List<List<int[]>> twoStates(List<int[]> genelist, int l) // l: length of seq
+	{
+		List<int[]> secondState = new ArrayList<int[]>();
+		
+		if (genelist.get(0)[0] != 0)
+		{
+			int[] firstpair = {0, genelist.get(0)[0] - 1};
+			secondState.add(firstpair);
+		}
+					
+		for(int i = 0; i < (genelist.size() - 1); i++ )
+		{
+			int anf = (genelist.get(i)[1]+1);
+			int end = (genelist.get(i+1)[0]-1);
+			int[] pair = {anf,end};
+			secondState.add(pair);
+		}
+		
+		if (genelist.get(genelist.size()-1)[1] != l-1)
+		{
+			int[] lastpair = {genelist.get(genelist.size()-1)[1],l-1};
+			secondState.add(lastpair);
+		}
+		
+		List<List<int[]>> ret = new ArrayList<List<int[]>>();
+		ret.add(genelist);
+		ret.add(secondState);
+		return(ret);
+	}	
+	
+	public static List<List<int[]>> threeStates(List<int[]> genelist, int l) // l: length of seq
+	{
+		List<List<int[]>> twostates = twoStates(genelist,l);
+		List<int[]> thirdState = new ArrayList<int[]>();
+		for(int i = 0; i < (genelist.size()); i++ )
+		{
+			twostates.get(0).get(i) [0] = twostates.get(0).get(i) [0] + 3;
+			int[] codonpair = {twostates.get(0).get(i) [0], twostates.get(0).get(i) [0] + 2};
+			thirdState.add(codonpair);
+		}
+		twostates.add(thirdState);		
+		return(twostates);
+	}
+	
+	public static Hmm<ObservationInteger> buildHmm(Sequence seq, List<int[]> genePositions) throws IOException  
 	{
 		//Probability of starting in Non-Gene vs Gene. The assumptions is we always start in Non-Gene
 		double[] pi = {1,0};
 		//transistion probabilitys of going from state i to state j
 		double[][] a = calcTransitionProbs(seq, genePositions);
 		//List of Observation distributions
-		List<Opdf> opdfs = calcEmissionProbs(seq, genePositions);
+		List<Opdf> opdfs = calcEmissionProbs(seq, twoStates(genePositions, seq.getSequence().length()));
 		Hmm<ObservationInteger> hmm = new Hmm(pi,a, opdfs);
-		System.out.println(hmm.toString());
-	
-			
-
+		//System.out.println(hmm.toString());
+		
+		
+		return hmm;	
+		
 		
 	}
 	
-	public static List<Opdf> calcEmissionProbs(Sequence seq, List<int[]> genePositions)
+	
+	public static  double[] countEmissionProbs(Sequence seq, List<int[]> stateList )
+	{
+		String seqString = seq.getSequence();
+		double[] emProbs = new double[4];
+		for(int i = 0; i < seqString.length(); i++ )
+		{
+		if(seqString.charAt(i) == 'a')
+		{
+			emProbs[0]++;
+		}
+		if(seqString.charAt(i) == 'c')
+		{
+			emProbs[1]++;
+		}
+
+		if(seqString.charAt(i) == 'g')
+		{
+			emProbs[2]++;
+		}
+		else
+		{
+			emProbs[3]++;
+		}
+		}
+		
+		double sum = emProbs[0] + emProbs[1] + emProbs[2] + emProbs[3];
+		for(int i = 0; i < emProbs.length ; i++)
+		{
+			emProbs[i] = emProbs[i] /sum;
+		}
+		return emProbs;
+		
+		
+	}
+	public static List<Opdf> calcEmissionProbs(Sequence seq, List<List<int[]>> featurePositions)
 	{
 		List<Opdf> opdfs = new ArrayList<Opdf>();
 		String seqString = seq.getSequence();
-		
-		
-		//initialize emission probability matrix 
-		double[][] emProbs= new double[2][4];
+				
 		//look at all characters
-		for(int i = 0; i < seqString.length(); i++ )
-		{
-			if( isInAGene(i,genePositions) )
-			{
-				if(seqString.charAt(i) == 'a')
-						{
-							emProbs[1][0]++;
-						}
-				if(seqString.charAt(i) == 'c')
-				{
-					emProbs[1][1]++;
-				}
-		
-				if(seqString.charAt(i) == 'g')
-				{
-					emProbs[1][2]++;
-				}
-				else
-				{
-					emProbs[1][3]++;
-				}
-			}
-			else
-			{
-				if(seqString.charAt(i) == 'a')
-						{
-							emProbs[0][0]++;
-						}
-				if(seqString.charAt(i) == 'c')
-				{
-					emProbs[0][1]++;
-				}
-		
-				if(seqString.charAt(i) == 'g')
-				{
-					emProbs[0][2]++;
-				}
-				else
-				{
-					emProbs[0][3]++;
-				}
-			}
+		for(int i = 0; i < featurePositions.size(); i++ ){
+			Opdf state = new OpdfInteger(countEmissionProbs(seq, featurePositions.get(i)));
+			opdfs.add(state);
 			
-			
-					
 		}
-		
-		//normalize over all emitted symbols in one state
-		double[] count = {(emProbs[0][0] + emProbs[0][1] + emProbs[0][2] +emProbs[0][3]),(emProbs[1][0] + emProbs[1][1] + emProbs[1][2] +emProbs[1][3])  };
-		for(int i = 0; i < emProbs.length; i ++)	
-		{
-			for(int j = 0; j < emProbs[0].length; j++)
-			{
-
-				emProbs[i][j] = emProbs[i][j]/count[i];
-				System.out.println("in " + i + " emit " + j + " with:" );
-				System.out.println(emProbs[i][j]);
-			}
-		}
-		
-		double[] probs0 = {emProbs[0][0], emProbs[0][1], emProbs[0][2],emProbs[0][3]};
-		double[] probs1 = {emProbs[1][0], emProbs[1][1], emProbs[1][2],emProbs[1][3]};
-		Opdf state0 = new OpdfInteger(probs0);
-		Opdf state1 = new OpdfInteger(probs1);
-		opdfs.add(state0);
-		opdfs.add(state1);
+	
 		return opdfs;
 
 				
@@ -229,4 +249,28 @@ public class main {
 		return false;
 	}
 
+	
+	//execute the Baum-Welch-algorithm for a given hmm
+	public static <O extends Observation>  Hmm<O> baumWelch(Hmm<O> hmm, int nbOfIteration)
+	{
+		//create a MarkovGenerator object 
+		MarkovGenerator<O> mg = new MarkovGenerator<O>(hmm);
+		//List<List<O>> object for the sequences
+		List<List<O>> sequences = new ArrayList<List<O>>();
+		
+		//build 200 sequences of length 500 based on the given hmm
+		for (int i = 0; i < 200; i++)
+			sequences.add(mg.observationSequence(500));
+			System.out.println(mg.observationSequence(500));;
+		
+		//initialize a Baum-Welch-object
+		BaumWelchLearner bwl = new BaumWelchLearner();
+		//set numbers of iterations
+		bwl.setNbIterations(nbOfIteration);
+		//learn new hmm from old hmm and builded sequences
+		System.out.println("execute Baum-Welch algorithm");
+		Hmm<O> learntHmm = bwl.learn(hmm, sequences);
+		return learntHmm;
+	}
+	
 }
