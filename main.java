@@ -56,10 +56,35 @@ public class main {
 		System.out.println("Gene positions extracted");
 		System.out.println(baumWelch(buildHmm(seq, genePositions),100).toString());
 		
+//		List<int[]>test = new ArrayList<int[]>();
+//		int[]test1 = {3,8};
+//		int[]test2 = {12,19};
+//		test.add(test1);
+//		test.add(test2);		
+//		System.out.println(liststring(threeStates(test, 22)));
 
 	}
-	
-	
+	public static String liststring(List<List<int[]>> list)
+	{
+		String bla = "[";
+		for(int i = 0; i < (list.size()); i++ )
+		{
+			bla = bla+"[";
+			for(int j = 0; j < (list.get(i).size()); j++ )
+			{
+				bla = bla+"[";
+				for(int k = 0; k < (list.get(i).get(j).length); k++ )
+				{
+					bla = bla+ (list.get(i).get(j)[k]) + " ";
+				}
+				bla = bla+"]";
+			}
+			bla = bla+"]";
+		}
+		bla = bla+"]";
+		return(bla);
+	}
+
 	public static List<List<int[]>> twoStates(List<int[]> genelist, int l) // l: length of seq
 	{
 		List<int[]> secondState = new ArrayList<int[]>();
@@ -96,22 +121,51 @@ public class main {
 		List<int[]> thirdState = new ArrayList<int[]>();
 		for(int i = 0; i < (genelist.size()); i++ )
 		{
-			twostates.get(0).get(i) [0] = twostates.get(0).get(i) [0] + 3;
 			int[] codonpair = {twostates.get(0).get(i) [0], twostates.get(0).get(i) [0] + 2};
+			List<int[]> clonepairs = twostates.get(0);
+			int[] pair = clonepairs.get(i);
+			pair[0] = pair[0] + 3;
+			clonepairs.set(i, pair);
+			twostates.set(0, clonepairs);
+			
+
 			thirdState.add(codonpair);
 		}
-		twostates.add(thirdState);		
+		twostates.add(thirdState);
 		return(twostates);
 	}
-	
+	/*
+	public static List<List<int[]>> fiveStates(List<int[]> genelist, int l) // l: length of seq
+	{
+		List<List<int[]>> threestates = threeStates(genelist,l);
+		List<int[]> thirdState = threestates.get(2);
+		for(int i = 0; i < (genelist.size()); i++ )
+		{
+			int[] codonpair = {twostates.get(0).get(i) [0], twostates.get(0).get(i) [0] + 2};
+			List<int[]> clonepairs = twostates.get(0);
+			int[] pair = clonepairs.get(i);
+			pair[0] = pair[0] + 3;
+			clonepairs.set(i, pair);
+			twostates.set(0, clonepairs);
+			
+
+			thirdState.add(codonpair);
+		}
+		twostates.add(thirdState);
+		return(twostates);
+	}
+	*/
 	public static Hmm<ObservationInteger> buildHmm(Sequence seq, List<int[]> genePositions) throws IOException  
 	{
 		//Probability of starting in Non-Gene vs Gene. The assumptions is we always start in Non-Gene
-		double[] pi = {1,0};
+		double[] pi = {0.33,0.34,0.33};
 		//transistion probabilitys of going from state i to state j
-		double[][] a = calcTransitionProbs(seq, genePositions);
+		
+		List<List<int[]>> two= twoStates(genePositions, seq.getSequence().length());
+		List<List<int[]>> three = threeStates(genePositions, seq.getSequence().length());
+		double[][] a = calcTransitionProbs(seq, three);
 		//List of Observation distributions
-		List<Opdf> opdfs = calcEmissionProbs(seq, twoStates(genePositions, seq.getSequence().length()));
+		List<Opdf> opdfs = calcEmissionProbs(seq, three );
 		Hmm<ObservationInteger> hmm = new Hmm(pi,a, opdfs);
 		//System.out.println(hmm.toString());
 		
@@ -176,55 +230,74 @@ public class main {
 	
 	
 	
-	
-	
-	
-	public static double[][] calcTransitionProbs(Sequence seq, List<int[]> genePositions)
+	public static int isInState(int x,  List<List<int[]>> featurePositions)
 	{
+		int ftNum = featurePositions.size();
+		for(int i = 0; i < ftNum; i++)
+		{		
+			for(int j = 0; j < featurePositions.get(i).size(); j++ )
+			{
+			
+				int [] tuple = featurePositions.get(i).get(j);
+					if(x >= tuple[0] & x <= tuple[1])
+						{
+						return i;
+						}
+	
+		}
 		
+	}
+		return -1;
+	
+	}
+	
+	public static double arraySum (double [] array)
+	{
+		double sum = 0;
+		for(int i = 0; i < array.length; i++)
+		{
+			sum += array[i];
+		}
+		return sum;
+	}
+	
+	public static double[][] calcTransitionProbs(Sequence seq, List<List<int[]>> featurePositions)
+	{
+		int ftNum = featurePositions.size();
 		String seqString = seq.getSequence();
-		//initialize transistion probability matrix 
-		double[][] transProbs = new double[2][2];
+		//initialize transition probability matrix 
+		double[][] transProbs = new double[ftNum][ftNum];
 		//look at all transitions
+		int [] states = {isInState(0, featurePositions), isInState(1, featurePositions)};
 		for(int i = 0; i < seqString.length()-1; i++ )
 		{
-			if( isInAGene(i,genePositions) )
-			{
-				if(isInAGene(i+1,genePositions))
+			if( states[0] > -1 & states[1] > -1)
 				{
-					transProbs[1][1]++;
-				}
-				else
-				{
-					transProbs[1][0]++;
-				}
-			}
-			else
-				{
-				if(isInAGene(i+1,genePositions))
-				{
-					transProbs[0][1]++;
-				}
-				else
-				{
-					transProbs[0][0]++;
-				}
-				}
-						
 				
+				transProbs[states[0]][states[1]]++;
+				states[0] = states[1];
+				states[1] = isInState(i+1, featurePositions);
+				
+				
+				}
+			
+			
+			else
+			{
+				System.out.println("Index not in Positions!");
+			}
 		}
 		//normalize over all transitions in one state
 		
-		double[] count = {(transProbs[0][0] + transProbs[0][1]) ,(transProbs[1][0] + transProbs[1][1])};
+		double sum = seqString.length() -1;
 		for(int i = 0; i < transProbs.length; i ++)	
 		{
+			double arraySum = arraySum(transProbs[i]);
 			for(int j = 0; j < transProbs[0].length; j++)
 			{
 
-				transProbs[i][j] = transProbs[i][j]/count[i];
-				System.out.println("from " + i + " to " + j);
-				System.out.println(transProbs[i][j]);
-			}
+				transProbs[i][j] = transProbs[i][j]/arraySum;
+		}
 		}
 		
 		return transProbs;
@@ -233,7 +306,7 @@ public class main {
 	
 	
 	
-	//checks if a position is the given list of Gene Positions
+	/*checks if a position is the given list of Gene Positions
 	public static boolean isInAGene(int pos, List<int[]> genePositions)
 	{
 		//interates over all positions pairs
@@ -248,7 +321,7 @@ public class main {
 		}
 		return false;
 	}
-
+*/
 	
 	//execute the Baum-Welch-algorithm for a given hmm
 	public static <O extends Observation>  Hmm<O> baumWelch(Hmm<O> hmm, int nbOfIteration)
