@@ -4,6 +4,7 @@ import be.ac.ulg.montefiore.run.jahmm.ObservationInteger;
 import be.ac.ulg.montefiore.run.jahmm.Opdf;
 import be.ac.ulg.montefiore.run.jahmm.OpdfInteger;
 import be.ac.ulg.montefiore.run.jahmm.OpdfIntegerFactory;
+import be.ac.ulg.montefiore.run.jahmm.ViterbiCalculator;
 import be.ac.ulg.montefiore.run.jahmm.io.FileFormatException;
 import be.ac.ulg.montefiore.run.jahmm.io.ObservationIntegerReader;
 import be.ac.ulg.montefiore.run.jahmm.io.ObservationSequencesReader;
@@ -22,7 +23,10 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.lang.String;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 
 
@@ -45,18 +49,18 @@ public class main {
 
 		
 		
-		
+		/*
 		List<List<ObservationInteger>> genes = new ArrayList<List<ObservationInteger>>();
 		List<List<ObservationInteger>> nongenes = new ArrayList<List<ObservationInteger>>();
 		
-		List<ObservationInteger> seqObs = getSeqObs(seq);
+		List<ObservationInteger> seqObs = getSeqObs(seq.getSequence());
 		
 		System.out.println("start gene search");
 		genes = getGeneSubSequences(seq, features, seqObs);
 		System.out.println("start non-gene search");
 		nongenes = getNonGeneSubSequences(seq, features, seqObs);
 		System.out.println("done");
-		
+		*/
 		
 		
 		//if feature is not on the complementary strand and is a gene add its position
@@ -66,42 +70,48 @@ public class main {
 		System.out.println("Gene positions extracted");
 		//Hmm<ObservationInteger> hmm = buildHmm(seq, features);
 		//System.out.println(hmm.toString());
-
-		Hmm < ObservationInteger > dummyHmm = new Hmm < ObservationInteger > (2 , new OpdfIntegerFactory(4) );
-		System.out.println(dummyHmm.toString());
-		System.out.println(baumWelch(dummyHmm ,100, seqObs).toString());
+		leaveOneOut(features, 2, seq);
+		//Hmm < ObservationInteger > dummyHmm = new Hmm < ObservationInteger > (2 , new OpdfIntegerFactory(4) );
+		//System.out.println(dummyHmm.toString());
+		//System.out.println(baumWelch(dummyHmm ,100, seqObs).toString());
 
 
 
 	}
 	
-	//given to strings returns the percentage of matching letters
-	public static double checkPercentageIdentity(String a, String b)
+	//given a list of obeservations and a hmm calculate the most probable sequence of states
+	public static int[] getMostProbableStates(ArrayList<ObservationInteger> obs, Hmm<ObservationInteger> hmm)
 	{
-		double length = a.length();
+	ViterbiCalculator viterbi = new ViterbiCalculator(obs, hmm);
+	return viterbi.stateSequence();
+		
+		
+	}
+	//given to strings returns the percentage of matching letters
+	public static double checkPercentageIdentity(int[] a, int[] b)
+	{
 		double count = 0;
-		if(length != b.length())
+		if(a.length != b.length)
 		{
 			System.out.println("Lengths of strings do not match!");
 			return -1;
 		}
-		for(int i = 0; i < length; i++)
+		for(int i = 0; i < a.length; i++)
 		{
-			if(a.charAt(i) == b.charAt(i))
+			if(a[i] == b[i])
 			{
 				count++;
 			}
 		}
-		return (count/length);
+		return (count/a.length);
 		
 	}
 	//return seqObs list from  given Sequence
-	public static  ArrayList<ObservationInteger> getSeqObs(Sequence seq){
+	public static  ArrayList<ObservationInteger> getSeqObs(String seqString){
 
 		ArrayList<ObservationInteger> seqObs = new ArrayList<ObservationInteger>();
-		String seqString = seq.getSequence();
 	
-	for (int i=0; i<seq.length();i++){
+	for (int i=0; i<seqString.length();i++){
 		if(seqString.charAt(i) == 'a'){
 			ObservationInteger help = new ObservationInteger(0);
 			seqObs.add(help);
@@ -143,6 +153,7 @@ public class main {
 		return(bla);
 	}
 
+	//given a list of the gene positions also calculate the positions of the non genes
 	public static List<List<int[]>> twoStates(List<int[]> genelist, int l) // l: length of seq
 	{
 		List<int[]> secondState = new ArrayList<int[]>();
@@ -172,7 +183,7 @@ public class main {
 		ret.add(secondState);
 		return(ret);
 	}	
-	
+	//given a list of gene positions also calculate the positions of non genes and the start codons
 	public static List<List<int[]>> threeStates(List<int[]> genelist, int l) // l: length of seq
 	{
 		List<List<int[]>> twostates = twoStates(genelist,l);
@@ -213,9 +224,91 @@ public class main {
 		return(twostates);
 	}
 	*/
-	public static Hmm<ObservationInteger> buildHmm(Sequence seq, List<Feature> features) throws IOException  
-	{	
+	
+	// for a Sequence and a number of Subsequences train a Hmm with all but the Subsequence and check the Percentage of correctly asserted states
+	public static void leaveOneOut(List<Feature> features, int n, Sequence seq ) throws IOException
+	
+	
+	{
+		System.out.println("starting leave one out validation");
 		
+		System.out.println("getting gene positions");
+		List<int[]> genePos = getGenePositions(features);
+		System.out.println("getting two states positions");
+		List<List<int[]>> twoPos= twoStates(genePos, seq.getSequence().length());
+		
+		double[] pi = {0.5,0.5};
+		System.out.println("Cutting into subsequences");
+		Map<Integer, String> map= cutToSubsequences(seq, n);
+		Object[] keys = map.keySet().toArray();
+		int subsequenceLength = (int) (Math.floor(seq.getSequence().length()/n));
+		System.out.println("Beginning model evaluation");
+		for(int i = 0; i < keys.length; i++)
+		{
+			int key = (Integer) keys[i];
+			int[] notTraining = {key, key + subsequenceLength };
+			System.out.println("training hmm with subsequence");
+			Hmm<ObservationInteger> hmm = buildHmm(seq, twoPos, pi, notTraining );
+			String subSequence = map.get(key);
+			double identity = checkPercentageIdentity(stringToStates(twoPos, subSequence , key), getMostProbableStates(getSeqObs(subSequence), hmm));
+			System.out.println("Percentage of correctly asserted states");
+			System.out.println(identity * 100);
+		}
+		
+		
+		
+		
+		
+		
+	}
+	
+	//cuts a Sequence in n subsequences and returns them with the absolute positions in the Sequence as keys
+	public static Map<Integer, String> cutToSubsequences(Sequence seq, int n)
+	{
+		
+		Map<Integer, String> map = new HashMap<Integer, String>();
+		
+		int subsequenceLength = (int) (Math.floor(seq.getSequence().length()/n));
+		for(int i = 0; i < seq.getSequence().length() - 10;)
+		{	
+			if(i+subsequenceLength > seq.getSequence().length() )
+			{
+			map.put(i, (seq.getSubSequence(i, i+subsequenceLength)));
+			}
+			else
+			{
+				map.put(i, (seq.getSubSequence(i, seq.getSequence().length() )));
+			}
+			i += subsequenceLength;
+		}
+		return map;
+			
+		
+	}	
+	
+	//given the int[] of all States, subsequence and the absolute position of the subsequence in the whole sequence
+	//calculate the int[] of the states
+	public static int[] stringToStates(List<List <int[]>> positions, String sequence, int absPos)
+	{
+		int[] stateSequence = new int[sequence.length()];
+		
+			
+			for(int j = 0; j < sequence.length(); j++)
+			{
+				
+					stateSequence[j] = isInState(j + absPos, positions);
+				
+			}
+			
+			
+	return stateSequence;		
+	}
+			
+		
+		
+// get the gene positions from a list of the positions of all features
+	public static List<int[]> getGenePositions(List<Feature> features)
+	{
 		List<int[]> genePositions = new ArrayList<int[]>();
 		//for all features
 		for(int i = 1; i < features.size(); i++){
@@ -231,15 +324,22 @@ public class main {
 		
 			}
 			}
-		}
-		double[] pi = {1 , 0};
+		}	
+		return genePositions;
+		
+	}
+	//builds a Hmm given the Seqeunce, the positions of the states, the intial probabilities and the positions where the Hmm should not be trained
+	public static Hmm<ObservationInteger> buildHmm(Sequence seq, List<List<int[]>> positions, double[] pi, int[] notIn ) throws IOException  
+	{	
+		
+		
 		//transistion probabilitys of going from state i to state j
 		
-		List<List<int[]>> two= twoStates(genePositions, seq.getSequence().length());
 		//List<List<int[]>> three = threeStates(genePositions, seq.getSequence().length());
-		double[][] a = calcTransitionProbs(seq, two);
+		double[][] a = calcTransitionProbs(seq, positions, notIn);
 		//List of Observation distributions
-		List<Opdf> opdfs = calcEmissionProbs(seq, two );
+		List<Opdf> opdfs = calcEmissionProbs(seq, positions, notIn );
+		
 		Hmm<ObservationInteger> hmm = new Hmm(pi,a, opdfs);
 		//System.out.println(hmm.toString());
 		
@@ -248,35 +348,37 @@ public class main {
 		
 		
 	}
-	public static  double[] countEmissionProbs(Sequence seq, List<int[]> stateList )
+	public static  double[] countEmissionProbs(Sequence seq, List<int[]> stateList, int[] notIn )
 	{
 		String seqString = seq.getSequence();
 		double[] emProbs = new double[4];
 		for(int i = 0; i < seqString.length(); i++ )
 		{
-			
-		if(isInAState(i, stateList) )
+		if(i < notIn[0] & i > notIn[1] )	
 		{
-		if(seqString.charAt(i) == 'a')
+			if(isInAState(i, stateList) )
+			{
+				if(seqString.charAt(i) == 'a')
 		{
 			emProbs[0]++;
 		}
-		if(seqString.charAt(i) == 'c')
+				if(seqString.charAt(i) == 'c')
 		{
 			emProbs[1]++;
 		}
 
-		if(seqString.charAt(i) == 'g')
+				if(seqString.charAt(i) == 'g')
 		{
 			emProbs[2]++;
 		}
-		else
+			else
 		{
 			emProbs[3]++;
 		}
 		}
 		
 		}
+	}
 		double sum = emProbs[0] + emProbs[1] + emProbs[2] + emProbs[3];
 		for(int i = 0; i < emProbs.length ; i++)
 		{
@@ -286,14 +388,16 @@ public class main {
 		
 		
 	}
-	public static List<Opdf> calcEmissionProbs(Sequence seq, List<List<int[]>> featurePositions)
+	
+	
+	public static List<Opdf> calcEmissionProbs(Sequence seq, List<List<int[]>> featurePositions, int[] notIn)
 	{
 		List<Opdf> opdfs = new ArrayList<Opdf>();
 		String seqString = seq.getSequence();
 				
 		//look at all characters
 		for(int i = 0; i < featurePositions.size(); i++ ){
-			Opdf state = new OpdfInteger(countEmissionProbs(seq, featurePositions.get(i)));
+			Opdf state = new OpdfInteger(countEmissionProbs(seq, featurePositions.get(i), notIn));
 			opdfs.add(state);
 			
 		}
@@ -333,7 +437,7 @@ public class main {
 		return sum;
 	}
 	
-	public static double[][] calcTransitionProbs(Sequence seq, List<List<int[]>> featurePositions)
+	public static double[][] calcTransitionProbs(Sequence seq, List<List<int[]>> featurePositions, int[] notIn)
 	{
 		int ftNum = featurePositions.size();
 		String seqString = seq.getSequence();
@@ -343,6 +447,8 @@ public class main {
 		int [] states = {isInState(0, featurePositions), isInState(1, featurePositions)};
 		for(int i = 0; i < seqString.length()-1; i++ )
 		{
+			if(i < notIn[0] & i > notIn[1])
+			{
 			if( states[0] > -1 & states[1] > -1)
 				{
 				
@@ -359,6 +465,7 @@ public class main {
 				System.out.println("Index not in Positions!");
 			}
 		}
+		}
 		//normalize over all transitions in one state
 		
 		double sum = seqString.length() -1;
@@ -374,10 +481,7 @@ public class main {
 		
 		return transProbs;
 	}
-	
-	
-	
-	
+
 	//checks if a position is the given list of Gene Positions
 	public static boolean isInAState(int pos, List<int[]> statePositions)
 	{
