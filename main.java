@@ -64,18 +64,37 @@ public class main {
 		
 		//success
 		System.out.println("Gene positions extracted");
-		Hmm<ObservationInteger> hmm = buildHmm(seq, features);
-		
-		Hmm < ObservationInteger > dummyHmm =
-				new Hmm < ObservationInteger >(2 , new OpdfIntegerFactory(4) );
-		System.out.println(hmm.toString());
+		//Hmm<ObservationInteger> hmm = buildHmm(seq, features);
+		//System.out.println(hmm.toString());
+
+		Hmm < ObservationInteger > dummyHmm = new Hmm < ObservationInteger > (2 , new OpdfIntegerFactory(4) );
 		System.out.println(dummyHmm.toString());
-		//System.out.println(baumWelch(dummyHmm ,100, seqObs).toString());
+		System.out.println(baumWelch(dummyHmm ,100, seqObs).toString());
 
 
 
 	}
 	
+	//given to strings returns the percentage of matching letters
+	public static double checkPercentageIdentity(String a, String b)
+	{
+		double length = a.length();
+		double count = 0;
+		if(length != b.length())
+		{
+			System.out.println("Lengths of strings do not match!");
+			return -1;
+		}
+		for(int i = 0; i < length; i++)
+		{
+			if(a.charAt(i) == b.charAt(i))
+			{
+				count++;
+			}
+		}
+		return (count/length);
+		
+	}
 	//return seqObs list from  given Sequence
 	public static  ArrayList<ObservationInteger> getSeqObs(Sequence seq){
 
@@ -435,11 +454,15 @@ public class main {
 		*/
 		List<List<O>> sequences = new ArrayList<List<O>>();
 		
-		sequences.add((List<O>)seqObs);
-			
+		sequences.add(seqObs.subList(0, seqObs.size()));
+		
+		
+		OpdfIntegerFactory factory = new OpdfIntegerFactory (4) ;
+		BaumWelchLearner < ObservationInteger > bwl = new BaumWelchLearner < ObservationInteger >(2 , factory );
+	
 		
 		//initialize a Baum-Welch-object
-		BaumWelchLearner bwl = new BaumWelchLearner();
+		//BaumWelchLearner bwl = new BaumWelchLearner();
 		//set numbers of iterations
 		bwl.setNbIterations(nbOfIteration);
 		//learn new hmm from old hmm and builded sequences
