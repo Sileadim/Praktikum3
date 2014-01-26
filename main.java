@@ -70,12 +70,19 @@ public class main {
 		System.out.println("Gene positions extracted");
 		//Hmm<ObservationInteger> hmm = buildHmm(seq, features);
 		//System.out.println(hmm.toString());
-		leaveOneOut(features, 2, seq);
-		//Hmm < ObservationInteger > dummyHmm = new Hmm < ObservationInteger > (2 , new OpdfIntegerFactory(4) );
-		//System.out.println(dummyHmm.toString());
-		//System.out.println(baumWelch(dummyHmm ,100, seqObs).toString());
-
-
+		//leaveOneOut(features, 4 , seq);
+		Hmm < ObservationInteger > dummyHmm = new Hmm < ObservationInteger > (2 , new OpdfIntegerFactory(4) );
+		System.out.println(dummyHmm.toString());
+		dummyHmm = baumWelch(dummyHmm ,1, seq);
+		
+		System.out.println(dummyHmm.toString());
+		
+		/*
+		int[] states = getMostProbableStates(getSeqObs(seq.getSequence()), dummyHmm);
+		for(int i = 0; i < states.length; i++){
+			System.out.println(states[i]);
+		}
+*/
 
 	}
 	
@@ -132,6 +139,30 @@ public class main {
 	return seqObs;	
 	}
 	
+	public static <O extends Observation> ArrayList<O> getSeqObs2(String seqString){
+
+		ArrayList<O> seqObs = new ArrayList<O>();
+	
+	for (int i=0; i<seqString.length();i++){
+		if(seqString.charAt(i) == 'a'){
+			ObservationInteger help = new ObservationInteger(0);
+			seqObs.add((O) help);
+		}
+		else if(seqString.charAt(i) == 'c'){
+			ObservationInteger help = new ObservationInteger(1);
+			seqObs.add((O) help);
+		}
+		else if(seqString.charAt(i) == 'g'){
+			ObservationInteger help = new ObservationInteger(2);
+			seqObs.add((O) help);
+		}
+		else {
+			ObservationInteger help = new ObservationInteger(3);
+			seqObs.add((O) help);
+		}
+	}
+	return seqObs;	
+	}
 	public static String liststring(List<List<int[]>> list)
 	{
 		String bla = "[";
@@ -236,8 +267,9 @@ public class main {
 		List<int[]> genePos = getGenePositions(features);
 		System.out.println("getting two states positions");
 		List<List<int[]>> twoPos= twoStates(genePos, seq.getSequence().length());
-		
-		double[] pi = {0.5,0.5};
+		//List<List<int[]>> twoPos= threeStates(genePos, seq.getSequence().length());
+
+		double[] pi = {0.5, 0.5};
 		System.out.println("Cutting into subsequences");
 		Map<Integer, String> map= cutToSubsequences(seq, n);
 		Object[] keys = map.keySet().toArray();
@@ -543,41 +575,64 @@ public class main {
 	
 	
 	//execute the Baum-Welch-algorithm for a given hmm
-	public static <O extends Observation>  Hmm<O> baumWelch(Hmm<O> hmm, int nbOfIteration, List<ObservationInteger> seqObs)
-	{
-		/*
-		//create a MarkovGenerator object 
-		MarkovGenerator<O> mg = new MarkovGenerator<O>(hmm);
-		//List<List<O>> object for the sequences
-		List<List<O>> sequences = new ArrayList<List<O>>();
-		
-		//build 200 sequences of length 500 based on the given hmm
-		for (int i = 0; i < 200; i++)
-			sequences.add(mg.observationSequence(500));
-			System.out.println(mg.observationSequence(500));;
-		*/
-		List<List<O>> sequences = new ArrayList<List<O>>();
-		
-		sequences.add(seqObs.subList(0, seqObs.size()));
-		
-		
-		OpdfIntegerFactory factory = new OpdfIntegerFactory (4) ;
-		BaumWelchLearner < ObservationInteger > bwl = new BaumWelchLearner < ObservationInteger >(2 , factory );
-	
-		
-		//initialize a Baum-Welch-object
-		//BaumWelchLearner bwl = new BaumWelchLearner();
-		//set numbers of iterations
-		bwl.setNbIterations(nbOfIteration);
-		//learn new hmm from old hmm and builded sequences
-		System.out.println("execute Baum-Welch algorithm");
-		Hmm<O> learntHmm = bwl.learn(hmm, sequences);
-		return learntHmm;
-	}
+		public static <O extends Observation>  Hmm<O> baumWelch(Hmm<O> hmm, int nbOfIteration, Sequence seq)
+		{
+			List<O> seqObs = getSeqObs2(seq.getSequence());
+			
+			
+			//create a MarkovGenerator object 
+			MarkovGenerator<O> mg = new MarkovGenerator<O>(hmm);
+			//List<List<O>> object for the sequences
+			List<List<O>> sequences = new ArrayList<List<O>>();
+				
+			//build 200 sequences of length 500 based on the given hmm
+			for (int i = 0; i < 200; i++)
+			{
+				List<O> list = mg.observationSequence(500);
+				
+					System.out.print(list.toString());
+				
+				
+				sequences.add(list);
+				System.out.println(list.getClass());
 
-	
-	public static <O extends Observation> void sequencePrediction(Sequence seq, List<Feature> features, Hmm<O> hmm){
-		
-	}
+			}
+			System.out.println("\n");
+			
+			List<List<O>> sequences2 = new ArrayList<List<O>>();
+			
+			//sequences.add((List<O>)seqObs);
+			int count = (int)Math.ceil(seqObs.size()/500);
+				
+			for(int i = 0 ; i < count ; i++)
+			{
+				if (i == count-1)
+				{	
+					
+					List<O> list = new ArrayList<O>(seqObs.subList(i*500, seqObs.size()-1));
+					
+						System.out.print(list.toString());
+						System.out.println(list.getClass());
+					
+					sequences2.add( (seqObs.subList(i*500, seqObs.size()-1)));
+				}
+				else
+				{
+					List<O> list = new ArrayList<O>(seqObs.subList(i*500, (i+1)*500));
+					sequences2.add(list);
+				}
+				
+			}
+			
+			//initialize a Baum-Welch-object
+
+			BaumWelchLearner bwl = new BaumWelchLearner();
+			//set numbers of iterations
+			bwl.setNbIterations(nbOfIteration);
+			//learn new hmm from old hmm and builded sequences
+			System.out.println("execute Baum-Welch algorithm");
+			Hmm<O> learntHmm = bwl.learn(hmm, sequences2);
+			return learntHmm;
+		}
 	
 }
